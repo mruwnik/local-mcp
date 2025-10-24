@@ -1,0 +1,5 @@
+users.txt
+.venv
+__pycache__
+*.pyc
+auth.db
