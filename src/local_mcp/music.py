@@ -1,3 +1,4 @@
+from typing import TypedDict
 from local_mcp.base import mcp
 from local_mcp.settings import ROMPR_API_USER, ROMPR_API_PASSWORD
 import httpx
@@ -24,6 +25,22 @@ SONG_ATTRIBUTES = [
     "metadata",
     "duration",
 ]
+
+
+class File(TypedDict):
+    file: str
+    title: str
+    duration: str
+
+
+class Folder(TypedDict):
+    folder: str
+    title: str
+
+
+class Directory(TypedDict):
+    files: list[File]
+    directories: list[Folder]
 
 
 def _get_auth_headers() -> dict[str, str]:
@@ -68,79 +85,50 @@ async def mpd_player_command(commands: list[list[str]]) -> dict:
         return response.json()
 
 
+async def get_files(client: httpx.AsyncClient, path: str = "") -> Directory:
+    params = {"path": path} if path else {}
+    response = await client.get(
+        f"{BASE_URL}/dirbrowser/",
+        headers=_get_auth_headers(),
+        params=params,
+        timeout=10.0,
+    )
+    response.raise_for_status()
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    tracks = [
+        File(
+            file=str(track.get("name") or ""),
+            title=track.select(".expand")[0].text,
+            duration=track.select(".tracktime")[0].text,
+        )
+        for track in soup.select(".clicktrack")
+    ]
+    folders = [
+        Folder(
+            folder=str(
+                folder.select("input", type="hidden", name="dirpath")[0].get("value")
+                or ""
+            ),
+            title=folder.select(".expand")[0].text,
+        )
+        for folder in soup.select(".clickalbum")
+    ]
+    return Directory(files=tracks, directories=folders)
+
+
 @mcp.tool()
-async def mpd_browse_directory(path: str = "") -> dict[str, list[dict[str, str]]]:
+async def mpd_browse_directory(paths: list[str] = []) -> dict[str, Directory]:
     """
     Browse MPD music directory. Returns files and subdirectories.
 
     Args:
-        path: Directory path to browse (empty string for root)
+        paths: List of directory paths to browse (empty list for root)
 
-    Returns dictionary with 'files' and 'directories' keys.
+    Returns a dict of {<path>: <Directory>}, where `Directory` is a dict with `files` and `directories` keys.
     """
     async with httpx.AsyncClient() as client:
-        params = {"path": path} if path else {}
-        response = await client.get(
-            f"{BASE_URL}/dirbrowser/",
-            headers=_get_auth_headers(),
-            params=params,
-            timeout=10.0,
-        )
-        response.raise_for_status()
-
-        soup = BeautifulSoup(response.text, "html.parser")
-        tracks = [
-            {
-                "file": track.get("name"),
-                "title": track.select(".expand")[0].text,
-                "duration": track.select(".tracktime")[0].text,
-            }
-            for track in soup.select(".clicktrack")
-        ]
-        folders = [
-            {
-                "folder": folder.select("input", type="hidden", name="dirpath")[0].get(
-                    "value"
-                ),
-                "title": folder.select(".expand")[0].text,
-            }
-            for folder in soup.select(".clickalbum")
-        ]
-        return {"files": tracks, "directories": folders}
-
-
-@mcp.tool()
-async def mpd_get_playlist(fields: list[str] = SONG_ATTRIBUTES) -> list[dict]:
-    """
-    Get current MPD playlist/queue.
-
-    Returns list of tracks in current queue.
-
-    Args:
-        fields: List of fields to return (default: all available fields)
-
-    Returns list of tracks in current queue.
-    """
-
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{BASE_URL}/tracklist/",
-                headers=_get_auth_headers(),
-                timeout=60.0,
-            )
-            response.raise_for_status()
-            return [
-                {
-                    attribute: value
-                    for attribute, value in track.items()
-                    if attribute in fields
-                }
-                for track in response.json()
-            ]
-    except Exception as e:
-        print(e)
-        return [{"error": str(e)}]
+        return {path: await get_files(client, path) for path in paths or [""]}
 
 
 @mcp.tool()
