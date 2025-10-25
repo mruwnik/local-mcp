@@ -1,0 +1,11 @@
+pyproject.toml
+src/local_mcp/base.py
+src/local_mcp/music.py
+src/local_mcp/server.py
+src/local_mcp/settings.py
+src/local_mcp.egg-info/PKG-INFO
+src/local_mcp.egg-info/SOURCES.txt
+src/local_mcp.egg-info/dependency_links.txt
+src/local_mcp.egg-info/entry_points.txt
+src/local_mcp.egg-info/requires.txt
+src/local_mcp.egg-info/top_level.txt

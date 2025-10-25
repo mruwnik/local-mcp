@@ -1,0 +1,4 @@
+mcp-oauth-server@ git+https://github.com/mruwnik/base-mcp-oauth.git
+python-dotenv
+httpx
+beautifulsoup4

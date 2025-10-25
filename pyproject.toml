@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "local-mcp"
+version = "0.1.0"
+description = "Local MCP server with music/MPD control tools"
+authors = [{ name = "Dan" }]
+requires-python = ">=3.10"
+dependencies = [
+    "mcp-oauth-server @ git+https://github.com/mruwnik/base-mcp-oauth.git",
+    "python-dotenv",
+    "httpx",
+    "beautifulsoup4",
+]
+
+[project.scripts]
+local-mcp = "local_mcp.server:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
